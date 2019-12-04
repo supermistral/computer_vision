@@ -1,5 +1,4 @@
 // добавление удаленного репозитория // origin - название для себя
-
 git remote add origin https://github.com/supermistral/computer_vision.git 
 
 // получения всех изменений к себе (по всему репозиторию) //
