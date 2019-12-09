@@ -55,7 +55,25 @@ class Computer_vision:
         cv2.imshow("line", self.allBinary_copy)'''
 
         perspective_temp = cv2.getPerspectiveTransform(self.figure_pts_0, self.dst)
-        perspective = cv2.warpPerspective(self.allBinary, perspective_temp, (self.video_width, self.video_height), flags = cv2.INTER_LINEAR)
-        cv2.imshow("perspective", perspective)
+        self.perspective = cv2.warpPerspective(self.allBinary, perspective_temp, (self.video_width, self.video_height), flags = cv2.INTER_LINEAR)
+        cv2.imshow("perspective", self.perspective)
+
+    # Поиск белых пикселей на изображении и выделение линий разметки
+    def search_white_pixels(self):
+        summ = np.sum(self.perspective[self.perspective.shape[0]//2:,:], axis = 0)
+        half_of_summ = summ.shape[0] // 2
+        index_whitepixels_l = np.argmax(summ[:half_of_summ])    # поиск самого белого столбца исходя из суммы цветных кодировок
+        index_whitepixels_r = np.argmax(summ[half_of_summ:]) + half_of_summ
+
+        index_l = np.array([], dtype = np.int16)
+        index_r = np.array([], dtype = np.int16)
+
+        array_of_whitepixels = self.perspective.nonzero()     # индексы пикселей - их координаты
+        white_pixels_y = np.array(array_of_whitepixels[0])    # получение индексов белых пикселей по строкам
+        white_pixels_x = np.array(array_of_whitepixels[1])    # по столбцам
+
+        # Следующий шаг - поделить 2 области с линиями на прямоугольные части, оттуда найти координаты пикселей разметки
+
+
 
 a = Computer_vision()
