@@ -35,13 +35,13 @@ class Computer_vision:
         binary_image[(binary_image_temp > 200)] = 255
         #cv2.imshow("video2", binary_image)
 
-        #Перевод в HLS пространство, регулирует порог светлости пикселей. 
+        # Перевод в HLS пространство, регулирует порог светлости пикселей. 
         resized_hls = cv2.cvtColor(self.resized, cv2.COLOR_BGR2HLS)
         binary_image_temp_2 = resized_hls[:,:,0]
         binary_image2 = np.zeros_like(binary_image_temp_2)
         binary_image2[(binary_image_temp_2 > 200)] = 255
 
-        self.allBinary = np.zeros_like(self.resized)
+        self.allBinary = np.zeros_like(binary_image)
         self.allBinary[((binary_image == 255)|(binary_image2 == 255))] = 255
         cv2.imshow("binary", self.allBinary)
 
@@ -58,22 +58,61 @@ class Computer_vision:
         self.perspective = cv2.warpPerspective(self.allBinary, perspective_temp, (self.video_width, self.video_height), flags = cv2.INTER_LINEAR)
         cv2.imshow("perspective", self.perspective)
 
+        self.search_white_pixels()
+
     # Поиск белых пикселей на изображении и выделение линий разметки
     def search_white_pixels(self):
         summ = np.sum(self.perspective[self.perspective.shape[0]//2:,:], axis = 0)
         half_of_summ = summ.shape[0] // 2
         index_whitepixels_l = np.argmax(summ[:half_of_summ])    # поиск самого белого столбца исходя из суммы цветных кодировок
         index_whitepixels_r = np.argmax(summ[half_of_summ:]) + half_of_summ
+        #print(index_whitepixels_r)
+        #exit()
 
-        index_l = np.array([], dtype = np.int16)
-        index_r = np.array([], dtype = np.int16)
+        index_l = np.array([], dtype = np.int16)    # массив с координатами белых пикселей,
+        index_r = np.array([], dtype = np.int16)    # принадлежащих разметке
 
         array_of_whitepixels = self.perspective.nonzero()     # индексы пикселей - их координаты
         white_pixels_y = np.array(array_of_whitepixels[0])    # получение индексов белых пикселей по строкам
         white_pixels_x = np.array(array_of_whitepixels[1])    # по столбцам
 
-        # Следующий шаг - поделить 2 области с линиями на прямоугольные части, оттуда найти координаты пикселей разметки
+        # Создание цветного изображения, т.к. self.perspective кодирует цвета 1 числом
+        out_image = np.dstack((self.perspective, self.perspective, self.perspective))
 
+        amount_windows = 10      # кол-во окон
+        half_of_window = 20     
+        center_l = index_whitepixels_l      # абсцисса самого белого столбца в изображении
+        center_r = index_whitepixels_r
+        window_height = np.int(self.perspective.shape[0]/amount_windows)
+        
+        for window in range(amount_windows):
+            # координаты прямоугольников в левой и правой частях
+            y1 = self.perspective.shape[0] - (window + 1)*window_height
+            y2 = self.perspective.shape[0] - window*window_height
+            x1_l = center_l - half_of_window
+            x2_l = center_l + half_of_window
+            x1_r = center_r - half_of_window
+            x2_r = center_r + half_of_window
+            
+            # индексы пикселей, попавших в окно, из массива координат всех белых пикселей
+            index_needful_l = ((white_pixels_y >= y1)&(white_pixels_y <= y2)&
+                (white_pixels_x >= x1_l)&(white_pixels_x <= x2_l)).nonzero()[0]
+            index_needful_r = ((white_pixels_y >= y1)&(white_pixels_y <= y2)&
+                (white_pixels_x >= x1_r)&(white_pixels_x <= x2_r)).nonzero()[0]
+            
+            # переопределение абсциссы центра последующего окна (среднее зачение абсцисс
+            # белых пикселей разметки); необходимо для смещения окна
+            # проверка на кол-во пикселей обязательна, т.к. пикселей в окне может не оказаться и будет valueerror
+            if len(index_needful_l) > 30:
+                center_l = np.int(np.mean(white_pixels_x[index_needful_l]))
+            if len(index_needful_r) > 30:
+                center_r = np.int(np.mean(white_pixels_x[index_needful_r]))
 
+            cv2.rectangle(out_image, (x1_l, y1), (x2_l, y2), (0, 0, 255), 1)
+            cv2.rectangle(out_image, (x1_r, y1), (x2_r, y2), (0, 0, 255), 1)
+            cv2.imshow("out", out_image)
+
+            index_l = np.concatenate((index_l, index_needful_l))    # здесь собираются конечные индексы
+            index_r = np.concatenate((index_r, index_needful_l))
 
 a = Computer_vision()
