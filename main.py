@@ -66,18 +66,16 @@ class Computer_vision:
         half_of_summ = summ.shape[0] // 2
         index_whitepixels_l = np.argmax(summ[:half_of_summ])    # поиск самого белого столбца исходя из суммы цветных кодировок
         index_whitepixels_r = np.argmax(summ[half_of_summ:]) + half_of_summ
-        #print(index_whitepixels_r)
-        #exit()
 
-        index_l = np.array([], dtype = np.int16)    # массив с координатами белых пикселей,
-        index_r = np.array([], dtype = np.int16)    # принадлежащих разметке
+        self.index_l = np.array([], dtype = np.int16)    # массив с координатами белых пикселей,
+        self.index_r = np.array([], dtype = np.int16)    # принадлежащих разметке
 
         array_of_whitepixels = self.perspective.nonzero()     # индексы пикселей - их координаты
-        white_pixels_y = np.array(array_of_whitepixels[0])    # получение индексов белых пикселей по строкам
-        white_pixels_x = np.array(array_of_whitepixels[1])    # по столбцам
+        self.white_pixels_y = np.array(array_of_whitepixels[0])    # получение индексов белых пикселей по строкам
+        self.white_pixels_x = np.array(array_of_whitepixels[1])    # по столбцам
 
         # Создание цветного изображения, т.к. self.perspective кодирует цвета 1 числом
-        out_image = np.dstack((self.perspective, self.perspective, self.perspective))
+        self.out_image = np.dstack((self.perspective, self.perspective, self.perspective))
 
         amount_windows = 10      # кол-во окон
         half_of_window = 20     
@@ -95,24 +93,44 @@ class Computer_vision:
             x2_r = center_r + half_of_window
             
             # индексы пикселей, попавших в окно, из массива координат всех белых пикселей
-            index_needful_l = ((white_pixels_y >= y1)&(white_pixels_y <= y2)&
-                (white_pixels_x >= x1_l)&(white_pixels_x <= x2_l)).nonzero()[0]
-            index_needful_r = ((white_pixels_y >= y1)&(white_pixels_y <= y2)&
-                (white_pixels_x >= x1_r)&(white_pixels_x <= x2_r)).nonzero()[0]
+            index_needful_l = ((self.white_pixels_y >= y1)&(self.white_pixels_y <= y2)&
+                (self.white_pixels_x >= x1_l)&(self.white_pixels_x <= x2_l)).nonzero()[0]
+            index_needful_r = ((self.white_pixels_y >= y1)&(self.white_pixels_y <= y2)&
+                (self.white_pixels_x >= x1_r)&(self.white_pixels_x <= x2_r)).nonzero()[0]
             
             # переопределение абсциссы центра последующего окна (среднее зачение абсцисс
             # белых пикселей разметки); необходимо для смещения окна
             # проверка на кол-во пикселей обязательна, т.к. пикселей в окне может не оказаться и будет valueerror
             if len(index_needful_l) > 30:
-                center_l = np.int(np.mean(white_pixels_x[index_needful_l]))
+                center_l = np.int(np.mean(self.white_pixels_x[index_needful_l]))
             if len(index_needful_r) > 30:
-                center_r = np.int(np.mean(white_pixels_x[index_needful_r]))
+                center_r = np.int(np.mean(self.white_pixels_x[index_needful_r]))
 
-            cv2.rectangle(out_image, (x1_l, y1), (x2_l, y2), (0, 0, 255), 1)
-            cv2.rectangle(out_image, (x1_r, y1), (x2_r, y2), (0, 0, 255), 1)
-            cv2.imshow("out", out_image)
+            cv2.rectangle(self.out_image, (x1_l, y1), (x2_l, y2), (0, 0, 255), 1)
+            cv2.rectangle(self.out_image, (x1_r, y1), (x2_r, y2), (0, 0, 255), 1)
+            cv2.imshow("out", self.out_image)
 
-            index_l = np.concatenate((index_l, index_needful_l))    # здесь собираются конечные индексы
-            index_r = np.concatenate((index_r, index_needful_l))
+            self.index_l = np.concatenate((self.index_l, index_needful_l))    # здесь собираются конечные индексы
+            self.index_r = np.concatenate((self.index_r, index_needful_r))
+
+        self.center_line()
+
+    def center_line(self):
+        # вычисление координат всех относящихся к разметке пикселей
+        x_l = self.white_pixels_x[self.index_l]
+        y_l = self.white_pixels_y[self.index_l]
+        x_r = self.white_pixels_x[self.index_r]
+        y_r = self.white_pixels_y[self.index_r]
+
+        line_left = np.polyfit(y_l, x_l, 2)     # x и y перепутаны: в цикле мы итерируемся построчно,
+        line_right = np.polyfit(y_r, x_r, 2)    # поэтому при вычислении точки мы будем знать ее y-координату
+        line_center = ((line_left + line_right) / 2)    
+
+        for line in range(self.out_image.shape[0]):
+            point = ((line_center[0]) * (line**2) + line_center[1] * line + line_center[2])     # x = ay^2 + by + c
+            cv2.circle(self.out_image, (int(point), int(line)), 2, (50, 200, 150), 1)
+            
+        cv2.imshow("center line", self.out_image)
+
 
 a = Computer_vision()
