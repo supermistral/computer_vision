@@ -1,3 +1,6 @@
+<b>Файл с тестовым видосом</b><br>
+https://drive.google.com/file/d/15DKzeicSJXGCECPyGVEpMX0eS-6HV0FD/view?usp=sharing
+
 // добавление удаленного репозитория // origin - название для себя // вводится единоразово<br>
 git remote add origin https://github.com/supermistral/computer_vision.git 
 
