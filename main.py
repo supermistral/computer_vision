@@ -1,13 +1,19 @@
-from cv2 import cv2
+#! /usr/bin/env python
+# -*- coding: utf-8 -*-
+
+import cv2
 import numpy as np
+from server import Server
 
 class Computer_vision:
     def __init__(self):
-        self.video = cv2.VideoCapture('video_cv.mp4')
+        self.video = cv2.VideoCapture(0)
+        
+        self.server = Server('192.168.7.24', 9090)
 
-        if not self.video.isOpened:
-            print('Error in file')
-            return
+        #if not self.video.isOpened:
+        #    print('Error in file')
+        #    return
 
         self.video_width = 360
         self.video_height = 200
@@ -26,20 +32,27 @@ class Computer_vision:
             self.resized = cv2.resize(frame, (self.video_width, self.video_height))
             cv2.imshow("videooo", self.resized)
 
-            self.binary()
+            try:
+                self.binary()
+            except:
+                print("change mode: manual")
+                res = self.change_mode()
+                if not res:
+                    break
 
     # Бинаризация по синему каналу (в cv2 изображения изначально в BGR пространстве)
     def binary(self):
+        threshold = 180  #porog
         binary_image_temp = self.resized[:,:,0]
         binary_image = np.zeros_like(binary_image_temp)
-        binary_image[(binary_image_temp > 200)] = 255
+        binary_image[(binary_image_temp > threshold)] = 255
         #cv2.imshow("video2", binary_image)
 
         # Перевод в HLS пространство, регулирует порог светлости пикселей. 
         resized_hls = cv2.cvtColor(self.resized, cv2.COLOR_BGR2HLS)
         binary_image_temp_2 = resized_hls[:,:,0]
         binary_image2 = np.zeros_like(binary_image_temp_2)
-        binary_image2[(binary_image_temp_2 > 200)] = 255
+        binary_image2[(binary_image_temp_2 > threshold)] = 255
 
         self.allBinary = np.zeros_like(binary_image)
         self.allBinary[((binary_image == 255)|(binary_image2 == 255))] = 255
@@ -65,7 +78,7 @@ class Computer_vision:
         summ = np.sum(self.perspective[self.perspective.shape[0]//2:,:], axis = 0)
         half_of_summ = summ.shape[0] // 2
         index_whitepixels_l = np.argmax(summ[:half_of_summ])    # поиск самого белого столбца исходя из суммы цветных кодировок
-        index_whitepixels_r = np.argmax(summ[half_of_summ:]) + half_of_summ
+        index_whitepixels_r = np.argmax(summ[half_of_summ:]) + half_of_summ    #argmax returns index in the array
 
         self.index_l = np.array([], dtype = np.int16)    # массив с координатами белых пикселей,
         self.index_r = np.array([], dtype = np.int16)    # принадлежащих разметке
@@ -101,9 +114,9 @@ class Computer_vision:
             # переопределение абсциссы центра последующего окна (среднее зачение абсцисс
             # белых пикселей разметки); необходимо для смещения окна
             # проверка на кол-во пикселей обязательна, т.к. пикселей в окне может не оказаться и будет valueerror
-            if len(index_needful_l) > 30:
+            if len(index_needful_l) > 0:
                 center_l = np.int(np.mean(self.white_pixels_x[index_needful_l]))
-            if len(index_needful_r) > 30:
+            if len(index_needful_r) > 0:
                 center_r = np.int(np.mean(self.white_pixels_x[index_needful_r]))
 
             cv2.rectangle(self.out_image, (x1_l, y1), (x2_l, y2), (0, 0, 255), 1)
@@ -124,13 +137,35 @@ class Computer_vision:
 
         line_left = np.polyfit(y_l, x_l, 2)     # x и y перепутаны: в цикле мы итерируемся построчно,
         line_right = np.polyfit(y_r, x_r, 2)    # поэтому при вычислении точки мы будем знать ее y-координату
-        line_center = ((line_left + line_right) / 2)    
+        line_center = ((line_left + line_right) / 2)
+        coord2points = []
 
         for line in range(self.out_image.shape[0]):
             point = ((line_center[0]) * (line**2) + line_center[1] * line + line_center[2])     # x = ay^2 + by + c
+            if line == 0 or line == self.out_image.shape[0]-1:
+                coord2points.append(point)
             cv2.circle(self.out_image, (int(point), int(line)), 2, (50, 200, 150), 1)
+
+        if abs(coord2points[0] - coord2points[1]) < 20:
+            print("вперед")
+            pass
+        elif (coord2points[0] - coord2points[1]) < 0:
+            print("налево")
+            pass
+        else:
+            print("направо")
+            pass
             
         cv2.imshow("center line", self.out_image)
+        
+    def change_mode(self):
+        cond = self.server.start()
+        if cond:
+            print("change mode: auto")
+            return True
+        
+        print("completion")
+        return False
 
 
 a = Computer_vision()
