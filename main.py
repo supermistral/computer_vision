@@ -1,15 +1,15 @@
 #! /usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import cv2
+from cv2 import cv2
 import numpy as np
-from server import Server
+#from server import Server
 
 class Computer_vision:
     def __init__(self):
-        self.video = cv2.VideoCapture(0)
+        self.video = cv2.VideoCapture('video_cv.mp4')
         
-        self.server = Server('192.168.7.24', 9090)
+        #self.server = Server('192.168.7.24', 9090)
 
         #if not self.video.isOpened:
         #    print('Error in file')
