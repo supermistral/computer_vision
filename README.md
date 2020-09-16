@@ -7,3 +7,5 @@
 https://drive.google.com/file/d/15DKzeicSJXGCECPyGVEpMX0eS-6HV0FD/view?usp=sharing
 
 =============================================================
+
+http://profil.mos.ru/inj/proekty/prakticheskoe-primenenie-kompyuternogo-zreniya.html
